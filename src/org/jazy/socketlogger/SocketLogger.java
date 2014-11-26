@@ -95,7 +95,8 @@ public class SocketLogger {
 		public synchronized boolean sendString(String msg) {
 			try {
 				PrintWriter pw = new PrintWriter(lastClient.getOutputStream());
-				pw.println(msg);
+				pw.print(msg + "\r\n");
+				pw.flush();
 				return true;
 			} catch (Exception e) {
 				System.out.println(e.getMessage());
@@ -122,8 +123,11 @@ public class SocketLogger {
 						String in = "";
 						do {
 							in = br.readLine();
-							System.out.println(in);
+							if (in != null) {
+								System.out.println(in);
+							}
 						} while (in != null);
+						System.out.println(client.getRemoteSocketAddress().toString() + " disconnected.");
 					} catch (Exception e) {
 						// Toss it out
 					}
@@ -139,9 +143,10 @@ public class SocketLogger {
 				addr = new InetSocketAddress(ip.split(":")[0],Integer.parseInt(ip.split(":")[1]));
 			} else {
 				System.out.print("Enter the port:");
+				@SuppressWarnings("resource")
 				Scanner tmpScan = new Scanner(System.in);
 				addr = new InetSocketAddress(ip, Integer.parseInt(tmpScan.nextLine()));
-				//tmpScan.close();
+				//tmpScan.close(); //Cant close because the main loop will be killed
 				//ew
 			}
 			return addr;
