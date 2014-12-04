@@ -6,36 +6,52 @@ import java.util.Scanner;
 
 public class SocketLogger {
 
-	Server ser;
+	Server ser = null;
+	FileWriter log = null;
 
-	public SocketLogger() {
-		ser = null;
+	public SocketLogger(String filePath) {
 		Scanner scan = new Scanner(System.in);
-		String s;
+		String s = "";
 		int p;
-		System.out.print("Enter port number:");
-		s = scan.nextLine();
-		p = Integer.parseInt(s);
+		//Open file for logging
 		try {
+			File file = new File(filePath);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+			log = new FileWriter(file, true);
+		} catch (Exception e) {
+			Log("Error starting server");
+			e.printStackTrace();
+		}
+		//Complete opening log file
+		//Initialize server
+		System.out.println("Jazy's server logger\n"
+				+ "Use /exit to close the program\n"
+				+ "Use /close to close the last client socket\n"
+				+ "Use /open IPADDRESS:PORT to connect to server\n\n");
+		try {
+			System.out.print("Enter port number:");
+			s = scan.nextLine();
+			p = Integer.parseInt(s);
 			ser = new Server(p);
 			Thread t = new Thread() {
 				public void run() {
 					try {
 						ser.listen();
 					} catch (Exception e) {
-						System.out.println(e.getMessage());
+						Log(e.getMessage());
 					}
 				}
 			};
 			t.setDaemon(true);
 			t.start();
 		} catch (Exception e) {
-			System.out.println("Error starting server");
+			Log("Error starting server");
 			e.printStackTrace();
 		}
-		System.out.println("Use /exit to close the program\n"
-				+ "Use /close to close the last client socket\n"
-				+ "Use /open IPADDRESS:PORT to connect to server");
+		//Server initialize complete
+		
 		while (!s.equals("/exit") && ser != null) {
 			s = scan.nextLine();
 			if (s.equals("/close") || s.equals("/exit")) {
@@ -44,11 +60,29 @@ public class SocketLogger {
 				ser.connectTo(s.substring(6));
 			} else {
 				if (ser.sendString(s)) {
+					//TODO Log the sent message
 					System.out.println("Message sent.");
 				}
 			}
 		}
 		scan.close();
+		try {
+			log.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public synchronized void Log(String msg) {
+		if (log != null) {
+			try {
+				log.write(msg + "\n");
+			} catch (Exception e) {
+				e.printStackTrace();
+				log = null;
+			}
+		}
+		System.out.println(msg);
 	}
 
 	private class Server {
@@ -71,21 +105,20 @@ public class SocketLogger {
 				Socket con = new Socket(addr.getAddress(), addr.getPort());
 				lastClient = con;
 				backgroundLogger(con);
-				System.out.println("Connected to: " + con.getRemoteSocketAddress().toString());
+				Log("Connected to: " + con.getRemoteSocketAddress().toString());
 			} catch(Exception e) {
-				System.out.println("Error connecting: " + e.getMessage());
+				Log("Error connecting: " + e.getMessage());
 				e.printStackTrace();
 			}
 		}
 
 		public void listen() throws Exception {
-			// TODO Add file log
-			System.out.println("Listening for connections");
+			Log("Listening for connections");
 			do {
-				System.out.println("Waiting for connections...");
+				Log("Waiting for connections...");
 				Socket client = serverSocket.accept();
 				lastClient = client;
-				System.out.println("Connection: " + client.getRemoteSocketAddress().toString());
+				Log("Connection: " + client.getRemoteSocketAddress().toString());
 				// ^^ Final! in a while loop! ew
 				// Make thread that will listen and log socket input
 				backgroundLogger(client);
@@ -99,16 +132,17 @@ public class SocketLogger {
 				pw.flush();
 				return true;
 			} catch (Exception e) {
-				System.out.println(e.getMessage());
+				Log(e.getMessage());
 				return false;
 			}
 		}
 
 		public synchronized void closeLastClient() {
 			try {
+				
 				lastClient.close();
 			} catch (IOException e) {
-				System.out.println(e.getMessage());
+				Log(e.getMessage());
 			}
 		}
 		
@@ -117,17 +151,17 @@ public class SocketLogger {
 			Thread t = new Thread() {
 				public void run() {
 					try {
-						System.out.println("Connection. Listening for input");
+						Log("Connection. Listening for input");
 						BufferedReader br = new BufferedReader(
 								new InputStreamReader(client.getInputStream()));
 						String in = "";
 						do {
-							in = br.readLine();
+							in = br.readLine(); //Will hold if client never closes
 							if (in != null) {
-								System.out.println(in);
+								Log(in);
 							}
 						} while (in != null);
-						System.out.println(client.getRemoteSocketAddress().toString() + " disconnected.");
+						Log(client.getRemoteSocketAddress().toString() + " disconnected.");
 					} catch (Exception e) {
 						// Toss it out
 					}
