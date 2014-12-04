@@ -21,7 +21,7 @@ public class SocketLogger {
 			}
 			log = new FileWriter(file, true);
 		} catch (Exception e) {
-			Log("Error starting server");
+			Log("Error creating log file:" + e.getMessage());
 			e.printStackTrace();
 		}
 		//Complete opening log file
@@ -77,6 +77,7 @@ public class SocketLogger {
 		if (log != null) {
 			try {
 				log.write(msg + "\n");
+				log.flush();
 			} catch (Exception e) {
 				e.printStackTrace();
 				log = null;
@@ -113,9 +114,8 @@ public class SocketLogger {
 		}
 
 		public void listen() throws Exception {
-			Log("Listening for connections");
+			Log("Server started listening for connections...");
 			do {
-				Log("Waiting for connections...");
 				Socket client = serverSocket.accept();
 				lastClient = client;
 				Log("Connection: " + client.getRemoteSocketAddress().toString());
@@ -123,6 +123,7 @@ public class SocketLogger {
 				// Make thread that will listen and log socket input
 				backgroundLogger(client);
 			} while (!serverSocket.isClosed());
+			Log("Server socket closed.");
 		}
 
 		public synchronized boolean sendString(String msg) {
